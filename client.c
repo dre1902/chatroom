@@ -1,4 +1,9 @@
 #include "chatroom.h"
+#include <sys/sendfile.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define PROMPT "Enter message > "
 
@@ -37,8 +42,9 @@ static void print_msg(const char *name, const char *msg)
     pthread_mutex_lock(&mutex);
 
     printf("\033[%d;0f<%s> %s", row++, name, msg);
-    /*printf("\033[40;0f\033[K%s", PROMPT);*/
-    printf("\033[40;%df", curr);
+    printf("\033[40;0f\033[K%s", PROMPT);
+    printf("\033[40;%df", curr + 1);
+    fflush(stdout);
 
     pthread_mutex_unlock(&mutex);
 }
@@ -79,7 +85,7 @@ static void recv_msg(int *fd)
         /*printf("read msg: %s\n", msg);*/
 
         print_msg(name, msg);
-        printf("\033[30;30fWHY IS THIS NOT WORKING!!!");
+        /*printf("\033[30;30fWHY IS THIS NOT WORKING!!!");*/
         memset(name, 0, MAX_NAME);
         memset(msg, 0, MAX_MSG);
     }
@@ -94,7 +100,9 @@ static int get_input(char *msg)
     i = 0;
     memset(msg, 0, MAX_MSG);
     do {
+        printf("\033[40;%df", curr + 1);
         c = getchar();
+        printf("\033[40;%df", curr + 1);
         curr++;
         if (i > MAX_MSG) {
             curr = 0;
@@ -107,6 +115,29 @@ static int get_input(char *msg)
     return 0;
 }
 
+static void send_ans(char *path, int sfd)
+{
+    int fd, count;
+    off_t begin;
+
+    fd = open(path, 0);
+    if (fd == -1) {
+        perror("open ans");
+        return;
+    }
+
+    begin = lseek(fd, 0, SEEK_CUR);
+    count = lseek(fd, 0, SEEK_END);
+    lseek(fd, begin, SEEK_SET);
+
+    if (write(sfd, (char*)&count, sizeof(count)) != sizeof(count)) {
+        perror("write ans size");
+        return;
+    }
+    if (sendfile(fd, sfd, NULL, count) == -1)
+        perror("sendfile ans");
+}
+
 int main(int argc, char *argv[])
 {
     int fd, s;
@@ -114,6 +145,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in sv_addr;
     pthread_t fetch_t;
 
+    /* usage: ./client <IPv4 address> <name> */
     if (argc != 3) {
         printf("usage error\n");
         exit(EXIT_FAILURE);
@@ -157,15 +189,20 @@ int main(int argc, char *argv[])
     }
     pthread_detach(fetch_t);
 
-    read(fd, (char*)&s, sizeof(s));
+    /*read(fd, (char*)&s, sizeof(s));*/
 
     curr = strlen(PROMPT);
     printf("\033[2J");
     printf("\033[40;0f\033[K%s", PROMPT);
     while (1) {
         get_input(msg);
+
         /* Print the user's message and then send it to the server */
-        print_msg(argv[2], msg);
+        if (msg[0] == '/')
+            send_ans(msg, fd);
+        else
+            print_msg(argv[2], msg);
+
         if (write(fd, msg, strlen(msg)) != strlen(msg))
             perror("write");
     }

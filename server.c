@@ -5,6 +5,7 @@
 /* Codes for chat commands */
 enum cmd {
     C_MESSAGE,
+    C_ANS,
     C_EXIT
 };
 
@@ -40,7 +41,7 @@ static int sv_init()
 }
 
 /* Sends msg to all clients except the sender */
-static int sv_sendMsg(const int fd, const char *name, const char *msg)
+static void sv_sendMsg(const int fd, const char *name, const char *msg)
 {
     int i, namelen, msglen;
 
@@ -75,7 +76,8 @@ static int sv_sendMsg(const int fd, const char *name, const char *msg)
 /* Check if the requested name is available */
 static int cl_init(struct client_t *c, const int fd)
 {
-    int approved, i;
+    char approved;
+    int i;
 
     c->fd = fd;
     if(read(c->fd, c->name, MAX_NAME) <= 0) {
@@ -102,6 +104,8 @@ static int parse_cl(const char *msg)
 {
     if (strncmp(msg, "exit", 4) == 0)
         return C_EXIT;
+    if (msg[0] == '/')
+        return C_ANS;
     return C_MESSAGE;
 }
 
@@ -111,7 +115,7 @@ static int parse_cl(const char *msg)
  */
 static void handle_cl(struct client_t *c)
 {
-    int cmd, fd;
+    int cmd, fd, msglen;
     char msg[MAX_MSG];
 
     fd = c->fd;
@@ -124,6 +128,11 @@ static void handle_cl(struct client_t *c)
         cmd = parse_cl(msg);
         switch (cmd) {
         case C_MESSAGE:
+            sv_sendMsg(fd, c->name, msg);
+            break;
+        case C_ANS:
+            read(fd, (char*)&msglen, sizeof(msglen));
+            read(fd, msg, MAX_MSG);
             sv_sendMsg(fd, c->name, msg);
             break;
         case C_EXIT:

@@ -10,4 +10,4 @@
 
 #define PORT_NUM 50000
 #define MAX_NAME 16
-#define MAX_MSG 512
+#define MAX_MSG 8192
