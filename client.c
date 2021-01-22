@@ -119,23 +119,32 @@ static void send_ans(char *path, int sfd)
 {
     int fd, count;
     off_t begin;
+    char msg[4192];
 
-    fd = open(path, 0);
+    path[strlen(path) - 1] = '\0';
+    fd = open(path, O_RDONLY);
     if (fd == -1) {
         perror("open ans");
         return;
     }
 
-    begin = lseek(fd, 0, SEEK_CUR);
+    /*begin = lseek(fd, 0, SEEK_CUR);
     count = lseek(fd, 0, SEEK_END);
-    lseek(fd, begin, SEEK_SET);
+    lseek(fd, begin, SEEK_SET);*/
+    count = 2048;
 
     if (write(sfd, (char*)&count, sizeof(count)) != sizeof(count)) {
         perror("write ans size");
         return;
     }
-    if (sendfile(fd, sfd, NULL, count) == -1)
-        perror("sendfile ans");
+
+    read(fd, msg, count);
+    if (write(sfd, msg, count) != count)
+        perror("write ans");
+    /*if (sendfile(fd, sfd, 0, count) == -1)
+        perror("sendfile ans");*/
+
+    close(fd);
 }
 
 int main(int argc, char *argv[])
@@ -200,11 +209,12 @@ int main(int argc, char *argv[])
         /* Print the user's message and then send it to the server */
         if (msg[0] == '/')
             send_ans(msg, fd);
-        else
+        else {
             print_msg(argv[2], msg);
 
-        if (write(fd, msg, strlen(msg)) != strlen(msg))
-            perror("write");
+            if (write(fd, msg, strlen(msg)) != strlen(msg))
+                perror("write");
+        }
     }
 
     exit(EXIT_SUCCESS);
