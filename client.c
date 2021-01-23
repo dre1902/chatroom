@@ -85,7 +85,6 @@ static void recv_msg(int *fd)
         /*printf("read msg: %s\n", msg);*/
 
         print_msg(name, msg);
-        /*printf("\033[30;30fWHY IS THIS NOT WORKING!!!");*/
         memset(name, 0, MAX_NAME);
         memset(msg, 0, MAX_MSG);
     }
@@ -128,10 +127,10 @@ static void send_ans(char *path, int sfd)
         return;
     }
 
-    /*begin = lseek(fd, 0, SEEK_CUR);
+    begin = lseek(fd, 0, SEEK_CUR);
     count = lseek(fd, 0, SEEK_END);
-    lseek(fd, begin, SEEK_SET);*/
-    count = 2048;
+    lseek(fd, begin, SEEK_SET);
+    /*count = 2048;*/
 
     if (write(sfd, (char*)&count, sizeof(count)) != sizeof(count)) {
         perror("write ans size");
@@ -141,8 +140,6 @@ static void send_ans(char *path, int sfd)
     read(fd, msg, count);
     if (write(sfd, msg, count) != count)
         perror("write ans");
-    /*if (sendfile(fd, sfd, 0, count) == -1)
-        perror("sendfile ans");*/
 
     close(fd);
 }
@@ -197,8 +194,6 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     pthread_detach(fetch_t);
-
-    /*read(fd, (char*)&s, sizeof(s));*/
 
     curr = strlen(PROMPT);
     printf("\033[2J");
